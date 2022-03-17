@@ -42,22 +42,7 @@ public class StillImageActivity extends AppCompatActivity {
 
     private static final String TAG = "StillImageActivity";
 
-    private static final String OBJECT_DETECTION = "Object Detection";
-    private static final String OBJECT_DETECTION_CUSTOM = "Custom Object Detection";
-    private static final String CUSTOM_AUTOML_OBJECT_DETECTION =
-            "Custom AutoML Object Detection (Flower)";
     private static final String FACE_DETECTION = "Face Detection";
-    private static final String BARCODE_SCANNING = "Barcode Scanning";
-    private static final String IMAGE_LABELING = "Image Labeling";
-    private static final String IMAGE_LABELING_CUSTOM = "Custom Image Labeling (Birds)";
-    private static final String CUSTOM_AUTOML_LABELING = "Custom AutoML Image Labeling (Flower)";
-    private static final String POSE_DETECTION = "Pose Detection";
-    private static final String SELFIE_SEGMENTATION = "Selfie Segmentation";
-    private static final String TEXT_RECOGNITION_LATIN = "Text Recognition Latin";
-    private static final String TEXT_RECOGNITION_CHINESE = "Text Recognition Chinese (Beta)";
-    private static final String TEXT_RECOGNITION_DEVANAGARI = "Text Recognition Devanagari (Beta)";
-    private static final String TEXT_RECOGNITION_JAPANESE = "Text Recognition Japanese (Beta)";
-    private static final String TEXT_RECOGNITION_KOREAN = "Text Recognition Korean (Beta)";
 
     private static final String SIZE_SCREEN = "w:screen"; // Match screen width
     private static final String SIZE_1024_768 = "w:1024"; // ~1024*768 in a normal ratio
@@ -72,7 +57,7 @@ public class StillImageActivity extends AppCompatActivity {
 
     private ImageView preview;
     private GraphicOverlay graphicOverlay;
-    private String selectedMode = OBJECT_DETECTION;
+    private String selectedMode = FACE_DETECTION;
     private String selectedSize = SIZE_SCREEN;
 
     boolean isLandScape;
@@ -167,21 +152,7 @@ public class StillImageActivity extends AppCompatActivity {
     private void populateFeatureSelector() {
         Spinner featureSpinner = findViewById(R.id.feature_selector);
         List<String> options = new ArrayList<>();
-        options.add(OBJECT_DETECTION);
-        options.add(OBJECT_DETECTION_CUSTOM);
-        options.add(CUSTOM_AUTOML_OBJECT_DETECTION);
         options.add(FACE_DETECTION);
-        options.add(BARCODE_SCANNING);
-        options.add(IMAGE_LABELING);
-        options.add(IMAGE_LABELING_CUSTOM);
-        options.add(CUSTOM_AUTOML_LABELING);
-        options.add(POSE_DETECTION);
-        options.add(SELFIE_SEGMENTATION);
-        options.add(TEXT_RECOGNITION_LATIN);
-        options.add(TEXT_RECOGNITION_CHINESE);
-        options.add(TEXT_RECOGNITION_DEVANAGARI);
-        options.add(TEXT_RECOGNITION_JAPANESE);
-        options.add(TEXT_RECOGNITION_KOREAN);
 
         // Creating adapter for featureSpinner
         ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
@@ -362,38 +333,11 @@ public class StillImageActivity extends AppCompatActivity {
             imageProcessor.stop();
         }
         try {
-            switch (selectedMode) {
-                case OBJECT_DETECTION:
-                    Log.i(TAG, "Using Object Detector Processor");
-                    ObjectDetectorOptions objectDetectorOptions =
-                            PreferenceUtils.getObjectDetectorOptionsForStillImage(this);
-                    imageProcessor = new ObjectDetectorProcessor(this, objectDetectorOptions);
-                    break;
-                case OBJECT_DETECTION_CUSTOM:
-                    Log.i(TAG, "Using Custom Object Detector Processor");
-                    LocalModel localModel =
-                            new LocalModel.Builder()
-                                    .setAssetFilePath("custom_models/object_labeler.tflite")
-                                    .build();
-                    CustomObjectDetectorOptions customObjectDetectorOptions =
-                            PreferenceUtils.getCustomObjectDetectorOptionsForStillImage(this, localModel);
-                    imageProcessor = new ObjectDetectorProcessor(this, customObjectDetectorOptions);
-                    break;
-                case CUSTOM_AUTOML_OBJECT_DETECTION:
-                    Log.i(TAG, "Using Custom AutoML Object Detector Processor");
-                    LocalModel customAutoMLODTLocalModel =
-                            new LocalModel.Builder().setAssetManifestFilePath("automl/manifest.json").build();
-                    CustomObjectDetectorOptions customAutoMLODTOptions =
-                            PreferenceUtils.getCustomObjectDetectorOptionsForStillImage(
-                                    this, customAutoMLODTLocalModel);
-                    imageProcessor = new ObjectDetectorProcessor(this, customAutoMLODTOptions);
-                    break;
-                case FACE_DETECTION:
-                    Log.i(TAG, "Using Face Detector Processor");
-                    imageProcessor = new FaceDetectorProcessor(this);
-                    break;
-                default:
-                    Log.e(TAG, "Unknown selectedMode: " + selectedMode);
+            if (FACE_DETECTION.equals(selectedMode)) {
+                Log.i(TAG, "Using Face Detector Processor");
+                imageProcessor = new FaceDetectorProcessor(this);
+            } else {
+                Log.e(TAG, "Unknown selectedMode: " + selectedMode);
             }
         } catch (Exception e) {
             Log.e(TAG, "Can not create image processor: " + selectedMode, e);
