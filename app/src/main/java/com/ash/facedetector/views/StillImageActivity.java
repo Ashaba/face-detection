@@ -36,8 +36,6 @@ public class StillImageActivity extends AppCompatActivity {
 
     private static final String TAG = "StillImageActivity";
 
-    private static final String FACE_DETECTION = "Face Detection";
-
     private static final String SIZE_SCREEN = "w:screen"; // Match screen width
     private static final String SIZE_1024_768 = "w:1024"; // ~1024*768 in a normal ratio
     private static final String SIZE_640_480 = "w:640"; // ~640*480 in a normal ratio
@@ -50,7 +48,6 @@ public class StillImageActivity extends AppCompatActivity {
     private static final int REQUEST_CHOOSE_IMAGE = 1002;
 
     private ImageView preview;
-    private String selectedMode = FACE_DETECTION;
     private String selectedSize = SIZE_SCREEN;
 
     boolean isLandScape;
@@ -89,7 +86,6 @@ public class StillImageActivity extends AppCompatActivity {
                         });
         preview = findViewById(R.id.preview);
 
-        populateFeatureSelector();
         populateSizeSelector();
 
         isLandScape =
@@ -139,33 +135,6 @@ public class StillImageActivity extends AppCompatActivity {
         if (imageProcessor != null) {
             imageProcessor.stop();
         }
-    }
-
-    private void populateFeatureSelector() {
-        Spinner featureSpinner = findViewById(R.id.feature_selector);
-        List<String> options = new ArrayList<>();
-        options.add(FACE_DETECTION);
-
-        // Creating adapter for featureSpinner
-        ArrayAdapter<String> dataAdapter = new ArrayAdapter<>(this, R.layout.spinner_style, options);
-        // Drop down layout style - list view with radio button
-        dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        // attaching data adapter to spinner
-        featureSpinner.setAdapter(dataAdapter);
-        featureSpinner.setOnItemSelectedListener(
-                new AdapterView.OnItemSelectedListener() {
-
-                    @Override
-                    public void onItemSelected(
-                            AdapterView<?> parentView, View selectedItemView, int pos, long id) {
-                        selectedMode = parentView.getItemAtPosition(pos).toString();
-                        createImageProcessor();
-                        tryReloadAndDetectInImage();
-                    }
-
-                    @Override
-                    public void onNothingSelected(AdapterView<?> arg0) {}
-                });
     }
 
     private void populateSizeSelector() {
@@ -320,14 +289,9 @@ public class StillImageActivity extends AppCompatActivity {
             imageProcessor.stop();
         }
         try {
-            if (FACE_DETECTION.equals(selectedMode)) {
-                Log.i(TAG, "Using Face Detector Processor");
-                imageProcessor = new FaceDetectorProcessor(this);
-            } else {
-                Log.e(TAG, "Unknown selectedMode: " + selectedMode);
-            }
+            imageProcessor = new FaceDetectorProcessor(this);
         } catch (Exception e) {
-            Log.e(TAG, "Can not create image processor: " + selectedMode, e);
+            Log.e(TAG, "Can not create image processor: ", e);
             Toast.makeText(
                     getApplicationContext(),
                     "Can not create image processor: " + e.getMessage(),
