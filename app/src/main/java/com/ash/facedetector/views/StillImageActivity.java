@@ -27,7 +27,6 @@ import com.ash.facedetector.R;
 import com.ash.facedetector.VisionImageProcessor;
 import com.ash.facedetector.face.FaceDetectorProcessor;
 import com.ash.facedetector.util.BitmapUtils;
-import com.ash.facedetector.util.GraphicOverlay;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,7 +50,6 @@ public class StillImageActivity extends AppCompatActivity {
     private static final int REQUEST_CHOOSE_IMAGE = 1002;
 
     private ImageView preview;
-    private GraphicOverlay graphicOverlay;
     private String selectedMode = FACE_DETECTION;
     private String selectedSize = SIZE_SCREEN;
 
@@ -90,7 +88,6 @@ public class StillImageActivity extends AppCompatActivity {
                             popup.show();
                         });
         preview = findViewById(R.id.preview);
-        graphicOverlay = findViewById(R.id.graphic_overlay);
 
         populateFeatureSelector();
         populateSizeSelector();
@@ -260,9 +257,6 @@ public class StillImageActivity extends AppCompatActivity {
                 return;
             }
 
-            // Clear the overlay first
-            graphicOverlay.clear();
-
             Bitmap resizedBitmap;
             if (selectedSize.equals(SIZE_ORIGINAL)) {
                 resizedBitmap = imageBitmap;
@@ -287,9 +281,7 @@ public class StillImageActivity extends AppCompatActivity {
             preview.setImageBitmap(resizedBitmap);
 
             if (imageProcessor != null) {
-                graphicOverlay.setImageSourceInfo(
-                        resizedBitmap.getWidth(), resizedBitmap.getHeight(), /* isFlipped= */ false);
-                imageProcessor.processBitmap(resizedBitmap, graphicOverlay);
+                imageProcessor.processBitmap(resizedBitmap);
             } else {
                 Log.e(TAG, "Null imageProcessor, please check adb logs for imageProcessor creation error");
             }
