@@ -26,13 +26,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.ash.facedetector.R;
 import com.ash.facedetector.VisionImageProcessor;
 import com.ash.facedetector.face.FaceDetectorProcessor;
-import com.ash.facedetector.objectdetector.ObjectDetectorProcessor;
-import com.ash.facedetector.preference.PreferenceUtils;
 import com.ash.facedetector.util.BitmapUtils;
 import com.ash.facedetector.util.GraphicOverlay;
-import com.google.mlkit.common.model.LocalModel;
-import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions;
-import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions;
 
 import java.io.IOException;
 import java.util.ArrayList;
