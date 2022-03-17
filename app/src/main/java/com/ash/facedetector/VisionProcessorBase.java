@@ -23,31 +23,17 @@ import android.app.ActivityManager;
 import android.app.ActivityManager.MemoryInfo;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.os.Build.VERSION_CODES;
 import android.os.SystemClock;
 import androidx.annotation.Nullable;
 import android.util.Log;
-import android.widget.Toast;
-import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
-import androidx.camera.core.ExperimentalGetImage;
-import androidx.camera.core.ImageProxy;
-
-import com.ash.facedetector.preference.PreferenceUtils;
-import com.ash.facedetector.util.BitmapUtils;
-import com.ash.facedetector.util.FrameMetadata;
-import com.ash.facedetector.util.GraphicOverlay;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.TaskExecutors;
 import com.google.android.gms.tasks.Tasks;
 import com.google.android.odml.image.BitmapMlImageBuilder;
-import com.google.android.odml.image.ByteBufferMlImageBuilder;
-import com.google.android.odml.image.MediaMlImageBuilder;
 import com.google.android.odml.image.MlImage;
 import com.google.mlkit.common.MlKitException;
 import com.google.mlkit.vision.common.InputImage;
-import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -66,7 +52,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
     private final ActivityManager activityManager;
     private final Timer fpsTimer = new Timer();
     private final ScopedExecutor executor;
-    private final TemperatureMonitor temperatureMonitor;
 
     // Whether this processor is already shut down
     private boolean isShutdown;
@@ -84,19 +69,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
     private int frameProcessedInOneSecondInterval = 0;
     private int framesPerSecond = 0;
 
-    // To keep the latest images and its metadata.
-    @GuardedBy("this")
-    private ByteBuffer latestImage;
-
-    @GuardedBy("this")
-    private FrameMetadata latestImageMetaData;
-    // To keep the images and metadata in process.
-    @GuardedBy("this")
-    private ByteBuffer processingImage;
-
-    @GuardedBy("this")
-    private FrameMetadata processingMetaData;
-
     protected VisionProcessorBase(Context context) {
         activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         executor = new ScopedExecutor(TaskExecutors.MAIN_THREAD);
@@ -110,7 +82,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
                 },
                 /* delay= */ 0,
                 /* period= */ 1000);
-        temperatureMonitor = new TemperatureMonitor(context);
     }
 
     // -----------------Code for processing single still image----------------------------------------
@@ -135,116 +106,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
                 /* originalCameraImage= */ null,
                 /* shouldShowFps= */ false,
                 frameStartMs);
-    }
-
-    // -----------------Code for processing live preview frame from Camera1 API-----------------------
-    @Override
-    public synchronized void processByteBuffer(
-            ByteBuffer data, final FrameMetadata frameMetadata, final GraphicOverlay graphicOverlay) {
-        latestImage = data;
-        latestImageMetaData = frameMetadata;
-        if (processingImage == null && processingMetaData == null) {
-            processLatestImage(graphicOverlay);
-        }
-    }
-
-    private synchronized void processLatestImage(final GraphicOverlay graphicOverlay) {
-        processingImage = latestImage;
-        processingMetaData = latestImageMetaData;
-        latestImage = null;
-        latestImageMetaData = null;
-        if (processingImage != null && processingMetaData != null && !isShutdown) {
-            processImage(processingImage, processingMetaData, graphicOverlay);
-        }
-    }
-
-    private void processImage(
-            ByteBuffer data, final FrameMetadata frameMetadata, final GraphicOverlay graphicOverlay) {
-        long frameStartMs = SystemClock.elapsedRealtime();
-
-        // If live viewport is on (that is the underneath surface view takes care of the camera preview
-        // drawing), skip the unnecessary bitmap creation that used for the manual preview drawing.
-        Bitmap bitmap =
-                PreferenceUtils.isCameraLiveViewportEnabled(graphicOverlay.getContext())
-                        ? null
-                        : BitmapUtils.getBitmap(data, frameMetadata);
-
-        if (isMlImageEnabled()) {
-            MlImage mlImage =
-                    new ByteBufferMlImageBuilder(
-                            data,
-                            frameMetadata.getWidth(),
-                            frameMetadata.getHeight(),
-                            MlImage.IMAGE_FORMAT_NV21)
-                            .setRotation(frameMetadata.getRotation())
-                            .build();
-
-            requestDetectInImage(mlImage, bitmap, /* shouldShowFps= */ true, frameStartMs)
-                    .addOnSuccessListener(executor, results -> processLatestImage(graphicOverlay));
-
-            // This is optional. Java Garbage collection can also close it eventually.
-            mlImage.close();
-            return;
-        }
-
-        requestDetectInImage(
-                InputImage.fromByteBuffer(
-                        data,
-                        frameMetadata.getWidth(),
-                        frameMetadata.getHeight(),
-                        frameMetadata.getRotation(),
-                        InputImage.IMAGE_FORMAT_NV21),
-                bitmap,
-                /* shouldShowFps= */ true,
-                frameStartMs)
-                .addOnSuccessListener(executor, results -> processLatestImage(graphicOverlay));
-    }
-
-    // -----------------Code for processing live preview frame from CameraX API-----------------------
-    @Override
-    @RequiresApi(VERSION_CODES.LOLLIPOP)
-    @ExperimentalGetImage
-    public void processImageProxy(ImageProxy image, GraphicOverlay graphicOverlay) {
-        long frameStartMs = SystemClock.elapsedRealtime();
-        if (isShutdown) {
-            image.close();
-            return;
-        }
-
-        Bitmap bitmap = null;
-        if (!PreferenceUtils.isCameraLiveViewportEnabled(graphicOverlay.getContext())) {
-            bitmap = BitmapUtils.getBitmap(image);
-        }
-
-        if (isMlImageEnabled()) {
-            MlImage mlImage =
-                    new MediaMlImageBuilder(image.getImage())
-                            .setRotation(image.getImageInfo().getRotationDegrees())
-                            .build();
-
-            requestDetectInImage(
-                    mlImage,
-                    /* originalCameraImage= */ bitmap,
-                    /* shouldShowFps= */ true,
-                    frameStartMs)
-                    // When the image is from CameraX analysis use case, must call image.close() on received
-                    // images when finished using them. Otherwise, new images may not be received or the
-                    // camera may stall.
-                    // Currently MlImage doesn't support ImageProxy directly, so we still need to call
-                    // ImageProxy.close() here.
-                    .addOnCompleteListener(results -> image.close());
-            return;
-        }
-
-        requestDetectInImage(
-                InputImage.fromMediaImage(image.getImage(), image.getImageInfo().getRotationDegrees()),
-                /* originalCameraImage= */ bitmap,
-                /* shouldShowFps= */ true,
-                frameStartMs)
-                // When the image is from CameraX analysis use case, must call image.close() on received
-                // images when finished using them. Otherwise, new images may not be received or the camera
-                // may stall.
-                .addOnCompleteListener(results -> image.close());
     }
 
     // -----------------Common processing logic-------------------------------------------------------
@@ -314,7 +175,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
                         activityManager.getMemoryInfo(mi);
                         long availableMegs = mi.availMem / 0x100000L;
                         Log.d(TAG, "Memory available in system: " + availableMegs + " MB");
-                        temperatureMonitor.logTemperature();
                     }
 
                     VisionProcessorBase.this.onSuccess(results);
@@ -335,7 +195,6 @@ public abstract class VisionProcessorBase<T> implements VisionImageProcessor {
         isShutdown = true;
         resetLatencyStats();
         fpsTimer.cancel();
-        temperatureMonitor.stop();
     }
 
     private void resetLatencyStats() {

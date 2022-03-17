@@ -28,46 +28,6 @@ import java.nio.ByteBuffer;
 public class BitmapUtils {
     private static final String TAG = "BitmapUtils";
 
-    /** Converts NV21 format byte buffer to bitmap. */
-    @Nullable
-    public static Bitmap getBitmap(ByteBuffer data, FrameMetadata metadata) {
-        data.rewind();
-        byte[] imageInBuffer = new byte[data.limit()];
-        data.get(imageInBuffer, 0, imageInBuffer.length);
-        try {
-            YuvImage image =
-                    new YuvImage(
-                            imageInBuffer, ImageFormat.NV21, metadata.getWidth(), metadata.getHeight(), null);
-            ByteArrayOutputStream stream = new ByteArrayOutputStream();
-            image.compressToJpeg(new Rect(0, 0, metadata.getWidth(), metadata.getHeight()), 80, stream);
-
-            Bitmap bmp = BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size());
-
-            stream.close();
-            return rotateBitmap(bmp, metadata.getRotation(), false, false);
-        } catch (Exception e) {
-            Log.e("VisionProcessorBase", "Error: " + e.getMessage());
-        }
-        return null;
-    }
-
-    /** Converts a YUV_420_888 image from CameraX API to a bitmap. */
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    @Nullable
-    @ExperimentalGetImage
-    public static Bitmap getBitmap(ImageProxy image) {
-        FrameMetadata frameMetadata =
-                new FrameMetadata.Builder()
-                        .setWidth(image.getWidth())
-                        .setHeight(image.getHeight())
-                        .setRotation(image.getImageInfo().getRotationDegrees())
-                        .build();
-
-        ByteBuffer nv21Buffer =
-                yuv420ThreePlanesToNV21(image.getImage().getPlanes(), image.getWidth(), image.getHeight());
-        return getBitmap(nv21Buffer, frameMetadata);
-    }
-
     /** Rotates a bitmap if it is converted from a bytebuffer. */
     private static Bitmap rotateBitmap(
             Bitmap bitmap, int rotationDegrees, boolean flipX, boolean flipY) {
