@@ -3,11 +3,7 @@ package com.ash.facedetector.util;
 import android.annotation.TargetApi;
 import android.content.ContentResolver;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
 import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
@@ -16,11 +12,8 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.camera.core.ExperimentalGetImage;
-import androidx.camera.core.ImageProxy;
 import androidx.exifinterface.media.ExifInterface;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
